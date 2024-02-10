@@ -31,6 +31,8 @@ from tqdm import tqdm
 from common.femnist_dataset import FEMNIST
 from flwr.common.logger import log
 
+class IntentionalDropoutError(BaseException):
+    """For clients to intentionally drop out of the federated learning process."""
 
 def get_device() -> str:
     """
@@ -177,6 +179,26 @@ def test_FEMNIST(  # noqa: N802
 
     accuracy = correct / total
     return loss, accuracy
+
+
+def get_activations_from_random_input(
+    net: Module,
+    device: str,
+    n_samples: int = 100,
+    seed: int = 1337,
+) -> np.ndarray:
+    """Return the activations of the network on random input."""
+    # Get a random input
+    prng = torch.random.manual_seed(seed)
+    random_input = torch.rand((n_samples, 1, 28, 28), generator=prng)
+    random_input = random_input.to(device)
+    # Get the activations
+    net.to(device)
+    net.eval()
+    with torch.no_grad():
+        outputs: torch.Tensor = torch.softmax(net(random_input), dim=1)
+    average_activations = torch.mean(outputs, dim=0)
+    return average_activations.cpu().numpy()
 
 
 # Define a simple CNN
